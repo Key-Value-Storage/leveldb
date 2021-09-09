@@ -73,7 +73,7 @@ else(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
   # Disable RTTI.
   string(REGEX REPLACE "-frtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 endif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 
 # Test whether -Wthread-safety is available. See
@@ -427,6 +427,8 @@ if(LEVELDB_BUILD_BENCHMARKS)
   # different manglings when compiled with clang or gcc, at least when installed
   # with Homebrew on Mac.
   set(OLD_CMAKE_REQURED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+  set(OLD_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+  string(REGEX REPLACE "-fno-exceptions" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   list(APPEND CMAKE_REQUIRED_LIBRARIES kyotocabinet)
   check_cxx_source_compiles("
 #include <kcpolydb.h>
@@ -437,11 +439,24 @@ int main() {
   return 0;
 }
   "  HAVE_KYOTOCABINET)
+  set(CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
   set(CMAKE_REQUIRED_LIBRARIES ${OLD_CMAKE_REQURED_LIBRARIES})
   if(HAVE_KYOTOCABINET)
-    leveldb_benchmark("benchmarks/db_bench_tree_db.cc")
-    target_link_libraries(db_bench_tree_db kyotocabinet)
+    # leveldb_benchmark("benchmarks/db_bench_tree_db.cc")
+    # target_link_libraries(db_bench_tree_db kyotocabinet)
   endif(HAVE_KYOTOCABINET)
+
+  # check_library_exists is insufficient here because the library names have
+  # different manglings when compiled with clang or gcc, at least when installed
+  # with Homebrew on Mac.
+  FIND_PATH(kingdbHeaders kingdb/kdb.h)
+  if(kingdbHeaders)
+    string(REGEX REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    include_directories(${kingdbHeaders}/kingdb)
+    leveldb_benchmark("benchmarks/db_bench_kingdb.cc")
+    target_link_libraries(db_bench_kingdb kingdb)
+	set(CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
+  endif(kingdbHeaders)
 endif(LEVELDB_BUILD_BENCHMARKS)
 
 if(LEVELDB_INSTALL)
